@@ -1,5 +1,3 @@
-% Part 1.
-
 close all; clear all; clc
 
 % Load cropped faces dataset.
@@ -62,6 +60,8 @@ U1=U1(:,1:feature);
 [U2,S2,V2]=svd(uncropped_faces_wave,0);
 U2=U2(:,1:feature);
 
+%%
+
 % The first four POD modes.
 figure(1);
 for j = 1:4
@@ -86,26 +86,48 @@ end
 figure(2);
 % Cropped faces.
 subplot(2,2,1); % normal scale.
-plot(diag(S1),'ko','Linewidth',[2]);
+plot(diag(S1)/sum(diag(S1)),'ko','Linewidth',[2]);
 set(gca,'Fontsize',[14],'Xlim',[0 100]);
-xlabel('Mode'), ylabel('diag(S): variance')
+xlabel('Mode'), ylabel('Energy')
 title('Normal scale: Cropped')
 subplot(2,2,3);
-semilogy(diag(S1),'ko','Linewidth',[2]); % Log scale.
+semilogy(diag(S1)/sum(diag(S1)),'ko','Linewidth',[2]); % Log scale.
 set(gca,'Fontsize',[14],'Xlim',[0 100]);
-xlabel('Mode'), ylabel('diag(S): variance')
+xlabel('Mode'), ylabel('Energy')
 title('Log scale: Cropped')
 % Uncropped faces.
 subplot(2,2,2); % normal scale.
-plot(diag(S2),'ko','Linewidth',[2]);
+plot(diag(S2)/sum(diag(S2)),'ko','Linewidth',[2]);
 set(gca,'Fontsize',[14],'Xlim',[0 100]);
-xlabel('Mode'), ylabel('diag(S): variance')
+xlabel('Mode'), ylabel('Energy')
 title('Normal scale: Uncropped')
 subplot(2,2,4);
-semilogy(diag(S2),'ko','Linewidth',[2]); % Log scale.
+semilogy(diag(S2)/sum(diag(S2)),'ko','Linewidth',[2]); % Log scale.
 set(gca,'Fontsize',[14],'Xlim',[0 100]);
-xlabel('Mode'), ylabel('diag(S): variance')
+xlabel('Mode'), ylabel('Energy')
 title('Log scale: Uncropped')
+
+%%
+
+energy1 = diag(S1)/sum(diag(S1));
+thresh90 = 0;
+for i = 1:2432
+    thresh90 = thresh90 + energy1(i);
+    if thresh90 > .9
+        disp(i) % rank can be 1666.
+        break
+    end
+end
+
+energy2 = diag(S2)/sum(diag(S2));
+thresh90 = 0;
+for i = 1:165
+    thresh90 = thresh90 + energy2(i);
+    if thresh90 > .9
+        disp(i) % rank can be 126.
+        break
+    end
+end
 
 %%
 
@@ -126,6 +148,39 @@ end
 
 % should we use u or v as our projection.
 
+%%
+
+% Inviduals.
+figure(4)
+for i = 1:38
+    plot3(V1((i-1)*64+1:i*64,1), V1((i-1)*64+1:i*64, 2), V1((i-1)*64+1:i*64, 3), 'o'),
+    hold on
+    title('Visualisation of individual clusters for Cropped Images');
+end
+
+figure(5)
+for i = 1:15
+    plot3(V2((i-1)*11+1:i*11,1), V2((i-1)*11+1:i*11, 2), V2((i-1)*11+1:i*11, 3),'o'),
+    hold on
+    title('Visualisation of individual clusters for Uncropped Images');
+end
+
+%%
+
+fm = [5 26 27 31 33 36];
+% Female vs Male.
+figure(6)
+for i = 1:38
+    if ismember(i, fm)
+        plot3(V1((i-1)*64+1:i*64,1), V1((i-1)*64+1:i*64, 2), V1((i-1)*64+1:i*64, 3), 'ro'),
+        hold on
+    else
+        plot3(V1((i-1)*64+1:i*64,1), V1((i-1)*64+1:i*64, 2), V1((i-1)*64+1:i*64, 3), 'bo'),
+        hold on
+    end
+    title('Visualisation of female vs male clusters for Cropped Images');
+end
+
 %% Test 1. Classify individuals.
 
 avg_correct=0;
@@ -137,9 +192,8 @@ for j = 1:38
     ctest=[ctest; j*ones(7,1)];
 end
 
-% un = 1; feature = 10; % GM method.
-un = 0; feature=60; % Other supervised methods.
-
+% un = 1; feature = 20; % GM method.
+un = 0; feature=40; % Other supervised methods.
 if un == 1
     
     i = 1;
@@ -164,7 +218,7 @@ if un == 1
             xtest((7*(k-1)+1):(7*k),:) = individual(q(58:end),:);
         end
 
-        % GM has very low accuracy. 1.05%.
+        % GM has very low accuracy. 2.58%.
         try
             gm=fitgmdist(xtrain,38);
             pre=cluster(gm, xtest);
@@ -200,16 +254,16 @@ else
         end
 
     %     % Naive Bayesian method. 82.11%
-%         nb=fitcnb(xtrain, ctrain);
-%         pre=nb.predict(xtest);
+        nb=fitcnb(xtrain, ctrain);
+        pre=nb.predict(xtest);
 
         % Linear Discrimination behave the best with spectrogram.
         % 86.48%.
         % pre=classify(xtest, xtrain, ctrain);
 
         % SVM. 68.16%
-        svm=fitcecoc(xtrain,ctrain);
-        pre=predict(svm, xtest);
+%         svm=fitcecoc(xtrain,ctrain);
+%         pre=predict(svm, xtest);
 
         % bar(pre);
         correct=sum((pre == ctest));
@@ -233,10 +287,10 @@ for j = 1:6
     ctrain((57*(fm(j)-1)+1):(57*fm(j)), 1) = 2;
     ctest((7*(fm(j)-1)+1):(7*fm(j)), 1)= 2;
 end
-feature = 60;
+feature = 100;
 
-%un = 1; % GM method.
-un = 0; % Other supervised methods.
+un = 1; % GM method.
+%un = 0; % Other supervised methods.
 
 if un == 1
     
@@ -295,6 +349,9 @@ else
             xtrain((57*(k-1)+1):(57*k),:) = individual(q(1:57),:);
             xtest((7*(k-1)+1):(7*k),:) = individual(q(58:end),:);
         end
+        
+        % KNN.
+        [ind, D] = knnsearch(xtrain, xtest, 'k', 2);
 
     %     % Naive Bayesian method. 85.39%
 %         nb=fitcnb(xtrain, ctrain);
